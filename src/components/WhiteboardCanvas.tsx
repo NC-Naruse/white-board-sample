@@ -22,10 +22,16 @@ export function WhiteboardCanvas({
 }: WhiteboardCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const segmentsRef = useRef<DrawSegment[]>(segments)
+  const resizeFrameRef = useRef<number | null>(null)
   const activeStrokeRef = useRef<ActiveStrokeState>({
     isDrawing: false,
     lastPoint: null,
   })
+
+  useEffect(() => {
+    segmentsRef.current = segments
+  }, [segments])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -49,18 +55,30 @@ export function WhiteboardCanvas({
       canvas.height = height * ratio
       context.setTransform(ratio, 0, 0, ratio, 0, 0)
 
-      redrawCanvas(canvas, segments)
+      redrawCanvas(canvas, segmentsRef.current)
     }
 
     resizeCanvas()
 
-    const observer = new ResizeObserver(resizeCanvas)
+    const observer = new ResizeObserver(() => {
+      if (resizeFrameRef.current !== null) {
+        window.cancelAnimationFrame(resizeFrameRef.current)
+      }
+
+      resizeFrameRef.current = window.requestAnimationFrame(() => {
+        resizeFrameRef.current = null
+        resizeCanvas()
+      })
+    })
     observer.observe(container)
 
     return () => {
+      if (resizeFrameRef.current !== null) {
+        window.cancelAnimationFrame(resizeFrameRef.current)
+      }
       observer.disconnect()
     }
-  }, [segments])
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
